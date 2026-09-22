@@ -2,7 +2,7 @@
 
 一个可本地运行、可部署到 GitHub Pages 的个人 Markdown 博客。阅读页面是预先生成的静态 HTML，写作台在浏览器中运行，不需要常驻应用后端。
 
-**本次交付没有创建远端仓库、使用真实 token 或对外发布。** GitHub 发布已经实现并通过模拟测试，真实账号的权限、分支保护和 Pages 部署仍需在首次使用时确认。
+仓库已配置 GitHub Pages 自动部署。站点地址：https://print-happy.github.io/personal-learning-blog/ 。每次推送 main 分支都会执行类型检查、核心测试、构建和部署；实际状态以 Actions 为准。在线写作台的令牌发布流程通过模拟测试，尚未使用个人令牌实测。
 
 ## 先在本地打开
 
@@ -111,4 +111,5 @@ screenshots/                    本次验收截图与打印样本
 `docs/posts`、`docs/public/posts` 和 `.vitepress/generated` 是构建生成目录，不要在那里编辑文章。文章内容只经过 Markdown 安全渲染后作为数据进入页面，从未交给 Vue 编译器。更多说明见 [PDF 与安全边界](guides/pdf-and-security.md)。
 
 需要搬到自己的服务器时，参考 [迁移与故障处理](guides/migration.md)。默认摄影来源和许可见 [第三方素材说明](THIRD_PARTY.md)。
+
 
