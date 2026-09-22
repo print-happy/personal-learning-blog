@@ -1,0 +1,48 @@
+import {test,expect} from '@playwright/test'
+
+test('fullscreen keeps content, supports both edge positions and dragging back',async({page})=>{
+ await page.goto('/personal-learning-blog/editor.html')
+ const editor=page.locator('.cm-content'),workspace=page.locator('.writing-workspace'),splitter=page.getByRole('separator')
+ await editor.fill('## Fullscreen note\n\nContent stays here.')
+ await page.getByRole('button',{name:'全屏写作',exact:true}).click()
+ await expect(workspace).toHaveClass(/is-expanded/)
+ const box=await workspace.boundingBox();expect(box?.width).toBe(page.viewportSize()!.width);expect(box?.height).toBe(page.viewportSize()!.height)
+ await expect(page.frameLocator('iframe[title="文章实时预览"]').getByRole('heading',{name:'Fullscreen note'})).toBeVisible()
+ async function dragTo(x:number){const bar=(await splitter.boundingBox())!;await page.mouse.move(bar.x+bar.width/2,bar.y+bar.height/2);await page.mouse.down();await page.mouse.move(x,bar.y+bar.height/2,{steps:12});await page.mouse.up()}
+ await dragTo(0);await expect(splitter).toHaveAttribute('aria-valuenow','0');await expect(page.locator('#markdown-pane')).toBeHidden();await expect(splitter).toBeVisible()
+ await dragTo(page.viewportSize()!.width/2);await expect(editor).toBeVisible();expect(Number(await splitter.getAttribute('aria-valuenow'))).toBeGreaterThan(45)
+ await dragTo(page.viewportSize()!.width-1);await expect(splitter).toHaveAttribute('aria-valuenow','100');await expect(page.locator('#preview-pane')).toBeHidden();await expect(splitter).toBeVisible()
+ await page.screenshot({path:'test-results/fullscreen-editor-only.png'})
+ await dragTo(page.viewportSize()!.width/2);await expect(page.locator('#preview-pane')).toBeVisible()
+ await splitter.focus();await page.keyboard.press('Home');await expect(splitter).toHaveAttribute('aria-valuenow','0');await page.keyboard.press('ArrowRight');await expect(splitter).toHaveAttribute('aria-valuenow','2');await page.keyboard.press('End');await expect(splitter).toHaveAttribute('aria-valuenow','100');await page.keyboard.press('Enter');await expect(splitter).toHaveAttribute('aria-valuenow','50')
+ await page.screenshot({path:'test-results/fullscreen-split.png'})
+ await page.getByRole('button',{name:'退出全屏',exact:true}).click();await expect(workspace).not.toHaveClass(/is-expanded/);await expect(editor).toContainText('Content stays here.')
+ await editor.click();await page.keyboard.press('Control+End');await page.keyboard.type(' Added.');await expect(editor).toContainText('Added.')
+ await page.getByRole('button',{name:'全屏写作',exact:true}).click();await page.keyboard.press('Escape');await expect(workspace).not.toHaveClass(/is-expanded/)
+ expect(await page.evaluate(()=>document.body.style.overflow)).not.toBe('hidden')
+})
+
+test('mobile viewport fallback keeps a reachable divider and restores normal tabs',async({page})=>{
+ await page.setViewportSize({width:390,height:844})
+ await page.addInitScript(()=>{Element.prototype.requestFullscreen=async()=>{throw new Error('Fullscreen unavailable')}})
+ await page.goto('/personal-learning-blog/editor.html')
+ await page.locator('.cm-content').fill('Mobile note')
+ await page.getByRole('button',{name:'全屏写作',exact:true}).click()
+ await expect(page.locator('.writing-workspace')).toHaveClass(/is-expanded/)
+ const splitter=page.getByRole('separator');await splitter.focus();await page.keyboard.press('End')
+ await expect(page.locator('#preview-pane')).toBeHidden();await expect(splitter).toBeVisible()
+ const box=(await splitter.boundingBox())!;expect(box.x+box.width).toBeLessThanOrEqual(391)
+ // Cancel an active pointer drag to verify cleanup on interrupted touch or mouse gestures.
+ await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down()
+ await page.mouse.move(195,box.y+box.height/2,{steps:10})
+ await splitter.dispatchEvent('pointercancel',{pointerId:1,pointerType:'mouse',isPrimary:true})
+ await page.mouse.up()
+ await expect(page.locator('.writing-workspace')).not.toHaveClass(/is-dragging/)
+ await page.getByRole('button',{name:'恢复等宽'}).click();await expect(splitter).toHaveAttribute('aria-valuenow','50')
+ await expect(page.locator('#preview-pane')).toBeVisible();await page.screenshot({path:'test-results/fullscreen-mobile.png'})
+ await splitter.focus();await page.keyboard.press('Home')
+ await page.getByRole('button',{name:'退出全屏',exact:true}).click()
+ await expect(page.locator('.cm-content')).toBeVisible();await expect(page.locator('#markdown-pane')).not.toHaveAttribute('inert','')
+ await page.getByRole('button',{name:'预览',exact:true}).click();await expect(page.locator('#preview-pane')).toBeVisible()
+})
+

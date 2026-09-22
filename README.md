@@ -34,6 +34,12 @@ node scripts/serve.mjs docs/.vitepress/dist 4173
 
 “下载文章包”得到一个 ZIP，包含 `index.md` 和 `assets/`。填写标题和文章地址后即可下载，无需 GitHub 凭据。ZIP 可以再次导入，也可以解压到 `content/posts/文章地址/` 后本地构建。
 
+## 全屏写作与分栏
+
+Markdown 与实时预览上方的“全屏写作”会展开整个写作区。拖动中间分隔条可调整左右宽度；拖到最左只显示预览，拖到最右只显示 Markdown。边缘始终保留手柄，可以拖回来。点击“恢复等宽”或双击分隔条恢复各半，点击“退出全屏”或按 Esc 返回。
+
+分隔条也支持键盘：左右方向键微调，Shift 加方向键加速，Home / End 收起一侧，Enter 恢复等宽。全屏切换不会重新创建编辑器，正文、撤销记录与草稿自动保存继续保留。不支持浏览器原生全屏时使用铺满页面的布局。
+
 ## 导入现有文件
 
 单篇 Markdown 可直接导入。如果正文引用本地图片，应选择包含 Markdown 与图片的整个文件夹，或将它们打成 ZIP。文件夹或 ZIP 中有多篇文章时，界面会让你选择其中一篇。程序不会猜测本机其他位置的图片，也不会执行导入文件。
@@ -111,5 +117,6 @@ screenshots/                    本次验收截图与打印样本
 `docs/posts`、`docs/public/posts` 和 `.vitepress/generated` 是构建生成目录，不要在那里编辑文章。文章内容只经过 Markdown 安全渲染后作为数据进入页面，从未交给 Vue 编译器。更多说明见 [PDF 与安全边界](guides/pdf-and-security.md)。
 
 需要搬到自己的服务器时，参考 [迁移与故障处理](guides/migration.md)。默认摄影来源和许可见 [第三方素材说明](THIRD_PARTY.md)。
+
 
 

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { useData } from 'vitepress'
 import { Download, Upload, ImagePlus, Link, FileText, Plus, Save, Send, RefreshCw, Trash2 } from 'lucide-vue-next'
 import MarkdownEditor from './MarkdownEditor.vue'
+import WritingWorkspace from './WritingWorkspace.vue'
 import { newDraft, cloneDraft, LIMITS, type Draft, type Asset } from '../core/types'
 import { fileMime, validateDraft } from '../core/content'
 import { importFiles, unpackZip, exportDraft, readFiles, draftProblems, type InputFile } from '../core/importer'
@@ -160,7 +161,11 @@ onBeforeUnmount(()=>{alive=false;clearToken();clearTimeout(saveTimer);clearTimeo
   <div :inert="busy||converting">
     <div class="editor-meta"><label>标题<input v-model="draft.title" class="title-input" maxlength="160" placeholder="这篇笔记的标题"/></label><label>文章地址<input v-model="draft.slug" placeholder="my-first-note" maxlength="80" autocomplete="off"/></label><label>日期<input v-model="draft.date" type="date"/></label><label class="full">标签<input v-model="tagInput" placeholder="用逗号分隔"/></label></div>
     <div class="mobile-tabs"><button :class="{selected:tab==='edit'}" @click="tab='edit'">编辑</button><button :class="{selected:tab==='preview'}" @click="tab='preview'">预览</button></div>
-    <div class="editor-workspace"><section :class="['edit-pane',{'mobile-hidden':tab!=='edit'}]"><div class="pane-heading"><span>Markdown</span><div class="toolbar"><button title="插入链接" aria-label="插入链接" @click="markdownEditor?.link()"><Link :size="16"/></button><button title="插入图片" aria-label="插入图片" @click="assetInput?.click()"><ImagePlus :size="16"/></button></div></div><MarkdownEditor ref="markdownEditor" v-model="draft.markdown" @files="addAssets($event)"/></section><section :class="['preview-pane',{'mobile-hidden':tab!=='preview'}]"><div class="pane-heading">实时预览</div><iframe title="文章实时预览" sandbox="" :srcdoc="preview"></iframe></section></div>
+    <WritingWorkspace :tab="tab">
+      <template #tools><button title="插入链接" aria-label="插入链接" @click="markdownEditor?.link()"><Link :size="16"/></button><button title="插入图片" aria-label="插入图片" @click="assetInput?.click()"><ImagePlus :size="16"/></button></template>
+      <template #markdown><MarkdownEditor ref="markdownEditor" v-model="draft.markdown" @files="addAssets($event)"/></template>
+      <template #preview><iframe title="文章实时预览" sandbox="" :srcdoc="preview"></iframe></template>
+    </WritingWorkspace>
   </div>
   <div v-if="problems.length" class="notice error">缺失或不支持的资源：{{problems.join('、')}}。请随 Markdown 导入资源文件夹或 ZIP；外链图片需先保存到本地。补齐后才能发布。</div>
   <div class="editor-bottom">
@@ -190,4 +195,5 @@ onBeforeUnmount(()=>{alive=false;clearToken();clearTimeout(saveTimer);clearTimeo
     </section>
   </div>
 </template>
+
 
