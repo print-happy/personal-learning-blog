@@ -1,0 +1,48 @@
+{
+  "name": "personal-learning-blog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsx scripts/prepare.ts && vitepress build docs",
+    "preview": "vitepress preview docs --host 127.0.0.1 --port 4173",
+    "typecheck": "tsx scripts/prepare.ts && vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "test:static": "node scripts/check-static.mjs"
+  },
+  "dependencies": {
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.21",
+    "markdown-it": "^14.1.0",
+    "sanitize-html": "^2.17.0",
+    "yaml": "^2.8.1",
+    "@codemirror/view": "^6.38.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/lang-markdown": "^6.3.4",
+    "@codemirror/commands": "^6.8.1",
+    "codemirror": "^6.0.2",
+    "fflate": "^0.8.2",
+    "idb-keyval": "^6.2.2",
+    "pdfjs-dist": "^6.3.289",
+    "highlight.js": "^11.11.1",
+    "lucide-vue-next": "^0.468.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vue-tsc": "^3.0.7",
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.18.6",
+    "@types/markdown-it": "^14.1.2",
+    "@types/sanitize-html": "^2.16.0",
+    "@playwright/test": "^1.55.0",
+    "pdf-lib": "^1.17.1"
+  }
+}
