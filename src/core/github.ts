@@ -22,10 +22,10 @@ export class GitHub {
     this.root='https://api.github.com/repos/'+encodeURIComponent(config.owner)+'/'+encodeURIComponent(config.repo)
   }
   clear(){this.token=''}
-  async request(path:string,method='GET',body?:unknown):Promise<any> {
+  async request(path:string,method='GET',body?:unknown,account=false):Promise<any> {
     if(!this.token)throw new Error('凭据已清除，请重新输入')
     let response:Response
-    try { response=await this.fetcher(this.root+path,{method,headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+this.token,'X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(45000)}) }
+    try { response=await this.fetcher(account?'https://api.github.com/user':this.root+path,{method,headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+this.token,'X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(45000)}) }
     catch{throw new GitHubError(0,'网络请求未完成。内容仍在本地；保存请求中断时请先核查状态')}
     if(!response.ok) {
       const messages:Record<number,string>={401:'凭据无效或已过期',403:'权限不足、分支保护或 API 频率限制；请查看仓库设置',404:'找不到仓库、分支或文件，或无权访问',409:'仓库状态冲突，请重新载入后比较',422:'远端已变化或不允许直接提交，请重新载入后比较',429:'请求过于频繁，请稍后刷新'}
@@ -104,6 +104,37 @@ export class GitHub {
     const head=await this.head();if(head===sha)return true
     const comparison=await this.request('/compare/'+sha+'...'+head)
     return comparison.status==='ahead'||comparison.status==='identical'
+  }
+  async assertOwner() {
+    const user=await this.request('', 'GET', undefined, true)
+    const repo=await this.request('')
+    if(!user.id||repo.owner?.type!=='User'||user.id!==repo.owner.id||repo.permissions?.push!==true)
+      throw new Error('只有此个人仓库的所有者可以通过写作台删除文章，请使用所有者的 Contents 读写令牌')
+  }
+  async remove(draft:Draft,onStatus:(s:PublishStatus)=>void=()=>{}):Promise<Receipt> {
+    validateSlug(draft.slug)
+    if(!draft.remote||draft.remote.repository!==repositoryKey(this.config)||draft.remote.slug!==draft.slug)
+      throw new Error('请先载入要删除的远端文章，且不要更改文章地址或仓库')
+    await this.assertOwner()
+    const snap=await this.snapshot(), prefix='content/posts/'+draft.slug+'/'
+    const previous=snap.entries.filter(e=>e.path.startsWith(prefix)&&e.type==='blob')
+    if(!previous.some(e=>e.path===prefix+'index.md'))throw new Error('远端文章已不存在，请重新载入确认')
+    if(fingerprint(previous)!==draft.remote.fingerprint)throw new Error('远端文章或资源已更改，请重新载入后再决定是否删除')
+    const tree=previous.map(e=>({path:e.path,mode:e.mode,type:'blob',sha:null}))
+    const next=await this.request('/git/trees','POST',{base_tree:snap.treeSha,tree})
+    const commit=await this.request('/git/commits','POST',{message:'docs: remove '+draft.slug,tree:next.sha,parents:[snap.head]})
+    const receipt:Receipt={config:{...this.config},sha:commit.sha,slug:draft.slug,confirmed:false}
+    onStatus({stage:'saving',message:'正在提交文章及附件的删除记录',receipt})
+    try {
+      await this.request('/git/refs/heads/'+encoded(this.config.branch),'PATCH',{sha:commit.sha,force:false})
+      receipt.confirmed=true
+    } catch(error) {
+      if(error instanceof GitHubError&&error.status!==0)throw error
+      try{receipt.confirmed=await this.contains(receipt.sha)}catch{}
+      if(!receipt.confirmed){onStatus({stage:'unknown',message:'删除结果暂不确定，请刷新发布状态，不要重复删除。本机草稿仍保留',receipt});return receipt}
+    }
+    onStatus({stage:'saved',message:'删除已提交，部署完成后文章会从网站移除。本机草稿与 Git 历史保留',receipt})
+    return receipt
   }
   async status(receipt:Receipt):Promise<PublishStatus> {
     if(repositoryKey(receipt.config)!==repositoryKey(this.config))throw new Error('请使用该次发布的仓库与分支检查状态')

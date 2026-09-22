@@ -117,6 +117,19 @@ async function publish(){
   }catch(e){fail(e);if(!(receipt.value as Receipt|undefined)?.confirmed)status.value={stage:'failed',message:'保存未完成。草稿仍在本地；请根据错误提示处理后重试'} }
   finally{client?.clear();busy.value=false}
 }
+async function removeRemote(){
+  if(busy.value||converting.value||!draft.value.remote)return
+  busy.value=true;error.value='';let client:GitHub|undefined
+  try {
+    const snapshot=cloneDraft(draft.value)
+    client=new GitHub({...toRaw(config.value)},token.value)
+    await client.assertOwner()
+    if(!confirm('删除已发布文章“'+snapshot.title+'”（'+snapshot.slug+'）？\n目标：'+config.value.owner+'/'+config.value.repo+'，分支 '+config.value.branch+'\n文章及全部图片、PDF 附件将在部署完成后下线。本机草稿和 Git 历史仍保留。'))return
+    await persist(true);clearTimeout(pollTimer);receipt.value=undefined;status.value=undefined
+    const r=await client.remove(snapshot,updateStatus);storeReceipt(r)
+    if(r.confirmed)void refreshStatus(true)
+  }catch(e){fail(e)}finally{client?.clear();busy.value=false}
+}
 async function refreshStatus(automatic=false){
   if(!receipt.value)return
   let client:GitHub|undefined
@@ -169,7 +182,7 @@ onBeforeUnmount(()=>{alive=false;clearToken();clearTimeout(saveTimer);clearTimeo
       <label style="margin-top:20px">细粒度 GitHub token<input v-model="token" type="password" placeholder="只在本次页面内使用" autocomplete="new-password" spellcheck="false" :disabled="busy" data-testid="token"/></label>
       <p class="muted small">仅选择目标仓库，授予 Contents 读写、Actions 只读、Deployments 只读。token 只存内存，刷新或离开页面即清除。</p>
       <button class="small" :disabled="busy" @click="clearToken">清除凭据</button>
-      <details style="margin-top:18px"><summary>编辑已有文章</summary><div class="toolbar"><label style="flex:1">远端文章地址<input v-model="remoteSlug" placeholder="my-first-note"/></label><button :disabled="busy||converting" @click="loadRemote">载入远端文章</button></div></details>
+      <details style="margin-top:18px"><summary>管理已有文章</summary><div class="toolbar"><label style="flex:1">远端文章地址<input v-model="remoteSlug" placeholder="my-first-note" :disabled="busy"/></label><button :disabled="busy||converting" @click="loadRemote">载入远端文章</button></div><p class="muted small">先载入文章。删除会同时移除该文章的图片和 PDF，部署完成后生效；本机草稿和 Git 历史仍保留。仅个人仓库所有者可使用此删除入口。</p><button class="button" :disabled="busy||converting||!draft.remote||!token" @click="removeRemote"><Trash2 :size="16"/>删除已发布文章</button></details>
       <label class="check-label"><input v-model="reviewed" type="checkbox" :disabled="busy||converting"/>我已检查预览、图片和 PDF 转换结果</label><button class="button primary" :disabled="!reviewed||busy||converting||!!problems.length" @click="publish"><Send :size="16"/>{{busy?'正在保存…':'保存到 GitHub 并发布'}}</button>
       <div v-if="status" class="status-line" role="status"><strong>{{({preparing:'准备中',uploading:'保存资源',saving:'提交中',saved:'已保存',building:'构建中',deployed:'部署完成',failed:'未完成',unknown:'待核查'})[status.stage]}}</strong><p>{{status.message}}<a v-if="status.url" :href="status.url" target="_blank" rel="noopener noreferrer">查看结果</a></p></div>
       <div v-if="receipt" class="toolbar" style="margin-top:16px"><button class="button" :disabled="busy" @click="refreshStatus()"><RefreshCw :size="15"/>刷新发布状态</button><small class="muted">提交 {{receipt.sha.slice(0,7)}}</small></div>
