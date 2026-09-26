@@ -13,7 +13,7 @@ import { GitHub, type RepoConfig, type PublishStatus, type Receipt } from '../co
 import type { PageReport } from '../core/pdf'
 import site from '../../site.config'
 const {site:siteData}=useData()
-const draft=ref<Draft>(newDraft()), saved=ref<Draft[]>([]), notice=ref(''), error=ref(''), saveNote=ref('草稿仅保存在此浏览器')
+const draft=ref<Draft>(newDraft()), saved=ref<Draft[]>([]), notice=ref(''), error=ref(''), saveNote=ref('本地草稿')
 const busy=ref(false), reviewed=ref(false), tab=ref('edit'), markdownEditor=ref<InstanceType<typeof MarkdownEditor>>()
 const importing=ref<InputFile[]>([]), mdChoices=ref<string[]>([]), chosenMD=ref(''), reports=ref<PageReport[]>([])
 const originalOnly=ref(false), lastPDF=ref<File>(), conversionProgress=ref(''), converting=ref(false)
@@ -24,7 +24,7 @@ const tagInput=computed({get:()=>draft.value.tags.join('，'),set:(v:string)=>{d
 const assetInput=ref<HTMLInputElement>(), replaceInput=ref<HTMLInputElement>();let replacing=''
 let saveTimer:ReturnType<typeof setTimeout>|undefined, previewTimer:ReturnType<typeof setTimeout>|undefined, pollTimer:ReturnType<typeof setTimeout>|undefined
 let abort:AbortController|undefined;let alive=true;let hydration=false;let savedRevision=0;let revision=0
-function fail(e:unknown){error.value=e instanceof Error?e.message:'操作失败，请重试';notice.value=''}
+function fail(e:unknown){error.value=e instanceof Error?e.message:'操作失败，请重试';notice.value='';if(error.value==='请先填写发布设置中的访问令牌')settingsOpen.value=true}
 function download(bytes:Uint8Array,name:string,mime='application/zip'){const url=URL.createObjectURL(new Blob([bytes.slice().buffer as ArrayBuffer],{type:mime}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function escape(s:string){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))}
 function updatePreview() {
@@ -62,7 +62,7 @@ async function readImport(event:Event) {
     else chosenMD.value=mdChoices.value[0]
   }catch(e){fail(e)}finally{input.value=''}
 }
-async function finishImport(){try{const next=importFiles(toRaw(importing.value),chosenMD.value);await switchDraft(next);mdChoices.value=[];importing.value=[];notice.value='已导入草稿，请检查预览与缺失资源'}catch(e){fail(e)}}
+async function finishImport(){try{const next=importFiles(toRaw(importing.value),chosenMD.value);await switchDraft(next);mdChoices.value=[];importing.value=[];notice.value='已导入'}catch(e){fail(e)}}
 async function addAssets(files:File[],replace=false) {
   error.value=''
   try {
@@ -92,17 +92,17 @@ async function convertPDF() {
   if(!lastPDF.value)return
   converting.value=true;error.value='';abort=new AbortController()
   const timeout=setTimeout(()=>abort?.abort(),120000)
-  try {const {importPDF}=await import('../core/pdf');const result=await importPDF(lastPDF.value,siteData.value.base,originalOnly.value,(p,n)=>conversionProgress.value='正在处理第 '+p+' / '+n+' 页',abort.signal);await switchDraft(result.draft);reports.value=result.reports;notice.value=originalOnly.value?'原 PDF 已进入草稿':'转换结果已进入草稿，请逐页对照原 PDF'}
+  try {const {importPDF}=await import('../core/pdf');const result=await importPDF(lastPDF.value,siteData.value.base,originalOnly.value,(p,n)=>conversionProgress.value='正在处理第 '+p+' / '+n+' 页',abort.signal);await switchDraft(result.draft);reports.value=result.reports;notice.value=originalOnly.value?'已添加 PDF':'已导入，请检查预览'}
   catch(e){fail(e)}finally{converting.value=false;conversionProgress.value='';clearTimeout(timeout)}
 }
 function cancelPDF(){abort?.abort()}
-function exportPackage(){try{download(exportDraft(toRaw(draft.value)),draft.value.slug+'.zip');notice.value='文章包已下载，包含 Markdown 与全部资源'}catch(e){fail(e)}}
+function exportPackage(){try{download(exportDraft(toRaw(draft.value)),draft.value.slug+'.zip');notice.value='已下载'}catch(e){fail(e)}}
 function storeReceipt(r:Receipt){receipt.value=r;try{localStorage.setItem('blog-publish-receipt',JSON.stringify(r))}catch{}}
 function updateStatus(s:PublishStatus){status.value=s;if(s.receipt)storeReceipt(s.receipt)}
 async function loadRemote(){
   busy.value=true;error.value=''
   let client:GitHub|undefined
-  try{client=new GitHub(toRaw(config.value),token.value);const next=await client.load(remoteSlug.value);await switchDraft(next);notice.value='已载入远端版本。发布时会检查是否被他人修改'}
+  try{client=new GitHub(toRaw(config.value),token.value);const next=await client.load(remoteSlug.value);await switchDraft(next);notice.value='已打开文章'}
   catch(e){fail(e)}finally{client?.clear();busy.value=false}
 }
 async function publish(){
@@ -115,7 +115,7 @@ async function publish(){
     const r=await client.publish(snapshot,updateStatus);storeReceipt(r)
     if(snapshot.remote){draft.value.remote=snapshot.remote;await persist(true)}
     if(r.confirmed)void refreshStatus(true)
-  }catch(e){fail(e);if(!(receipt.value as Receipt|undefined)?.confirmed)status.value={stage:'failed',message:'保存未完成。草稿仍在本地；请根据错误提示处理后重试'} }
+  }catch(e){fail(e);if(!(receipt.value as Receipt|undefined)?.confirmed)status.value={stage:'failed',message:error.value||'发布失败，请重试'} }
   finally{client?.clear();busy.value=false}
 }
 async function removeRemote(){
@@ -125,7 +125,7 @@ async function removeRemote(){
     const snapshot=cloneDraft(draft.value)
     client=new GitHub({...toRaw(config.value)},token.value)
     await client.assertOwner()
-    if(!confirm('删除已发布文章“'+snapshot.title+'”（'+snapshot.slug+'）？\n目标：'+config.value.owner+'/'+config.value.repo+'，分支 '+config.value.branch+'\n文章及全部图片、PDF 附件将在部署完成后下线。本机草稿和 Git 历史仍保留。'))return
+    if(!confirm('删除已发布文章“'+snapshot.title+'”（'+snapshot.slug+'）？\n目标：'+config.value.owner+'/'+config.value.repo+'，分支 '+config.value.branch+'\n文章及全部图片、PDF 附件将在部署完成后下线。本地草稿会保留。'))return
     await persist(true);clearTimeout(pollTimer);receipt.value=undefined;status.value=undefined
     const r=await client.remove(snapshot,updateStatus);storeReceipt(r)
     if(r.confirmed)void refreshStatus(true)
@@ -167,31 +167,31 @@ onBeforeUnmount(()=>{alive=false;clearToken();clearTimeout(saveTimer);clearTimeo
       <template #preview><iframe title="文章实时预览" sandbox="" :srcdoc="preview"></iframe></template>
     </WritingWorkspace>
   </div>
-  <div v-if="problems.length" class="notice error">缺失或不支持的资源：{{problems.join('、')}}。请随 Markdown 导入资源文件夹或 ZIP；外链图片需先保存到本地。补齐后才能发布。</div>
+  <div v-if="problems.length" class="notice error">以下附件无法读取：{{problems.join('、')}}。请重新添加后发布。</div>
   <div class="editor-bottom">
     <div>
-      <section class="panel"><h2>导入与资源</h2><div class="toolbar">
+      <section class="panel"><h2>附件与导入</h2><div class="toolbar">
         <label class="button file-label"><Upload :size="16"/>Markdown / ZIP<input class="visually-hidden" data-testid="import-md" type="file" accept=".md,.zip" :disabled="busy||converting" @change="readImport"/></label>
         <label class="button file-label"><Upload :size="16"/>文件夹<input class="visually-hidden" data-testid="import-folder" type="file" webkitdirectory multiple :disabled="busy||converting" @change="readImport"/></label>
-        <button class="button" :disabled="busy||converting" @click="assetInput?.click()"><ImagePlus :size="16"/>添加资源</button>
+        <button class="button" :disabled="busy||converting" @click="assetInput?.click()"><ImagePlus :size="16"/>添加附件</button>
         <input ref="assetInput" class="visually-hidden" data-testid="asset-input" type="file" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" @change="e=>{const i=e.target as HTMLInputElement;if(i.files)addAssets(Array.from(i.files));i.value=''}"/>
         <input ref="replaceInput" class="visually-hidden" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" @change="e=>{const i=e.target as HTMLInputElement;if(i.files)addAssets(Array.from(i.files),true);i.value=''}"/>
-      </div><p class="muted small" style="margin:14px 0">支持粘贴或拖入图片。含图片的 Markdown 请导入文件夹或 ZIP。</p>
+      </div>
       <div v-if="mdChoices.length>1" class="toolbar"><label>选择文章<select v-model="chosenMD"><option v-for="m in mdChoices" :key="m">{{m}}</option></select></label><button @click="finishImport">导入这一篇</button></div>
-      <div class="asset-list"><p v-if="!draft.assets.length" class="resource-empty">暂无资源</p><div v-for="a in draft.assets" :key="a.path" class="asset-row"><img v-if="a.mime.startsWith('image/')" :src="urls[a.path]" alt=""/><FileText v-else :size="24"/><span class="asset-name">{{a.path.split('/').pop()}}<br/><span class="muted">{{(a.bytes.length/1024).toFixed(0)}} KB</span></span><div class="toolbar"><button @click="insertAsset(a)">插入</button><button v-if="a.mime!=='application/pdf'" @click="selectReplacement(a)">替换</button><button @click="download(a.bytes,a.path.split('/').pop()!,a.mime)">下载</button><button v-if="a.mime!=='application/pdf'" :aria-label="'删除 '+a.path" @click="removeAsset(a)"><Trash2 :size="13"/></button></div></div></div>
-      <details style="margin-top:20px"><summary>导入 PDF</summary><div><label class="check-label"><input v-model="originalOnly" type="checkbox"/>保留原 PDF，不转换文字</label><div class="toolbar"><label class="button file-label"><FileText :size="16"/>选择 PDF<input class="visually-hidden" data-testid="import-pdf" type="file" accept=".pdf" :disabled="busy||converting" @change="pdfChange"/></label><button v-if="lastPDF" :disabled="converting" @click="convertPDF">重新导入</button><button v-if="converting" @click="cancelPDF">取消</button></div><p class="muted small">最多 20 MB、转换最多 40 页。不做 OCR；复杂页面保留图像。原 PDF 始终保留，导入后不会自动发布。</p><p v-if="converting" role="status">{{conversionProgress||'正在打开 PDF…'}}</p>
-      <a v-if="urls['assets/original.pdf']" class="original-preview" :href="urls['assets/original.pdf']" target="_blank" rel="noopener noreferrer">打开原 PDF 对照</a><ol v-if="reports.length" class="pdf-report"><li v-for="r in reports" :key="r.page">第 {{r.page}} 页 · {{({text:'文字',scan:'图像',complex:'复杂布局'})[r.kind]}} · {{r.characters}} 字 · {{r.images}} 张独立图片<p class="muted">{{r.warnings.join('；')}}</p></li></ol></div></details></section>
-      <section class="panel" style="margin-top:20px"><details><summary>本机草稿（{{saved.length}}）</summary><div><p class="muted">仅属于此浏览器和此网址。清理网站数据会丢失，请定期下载文章包。</p><div v-for="d in saved" :key="d.id" class="draft-item"><button :disabled="busy||converting" @click="restore(d)">{{d.title||'未命名草稿'}}<small>{{new Date(d.updatedAt).toLocaleString('zh-CN')}}</small></button><button :disabled="busy||converting" :aria-label="'删除草稿 '+d.title" @click="removeDraft(d)"><Trash2 :size="15"/></button></div></div></details></section>
+      <div class="asset-list"><p v-if="!draft.assets.length" class="resource-empty">暂无附件</p><div v-for="a in draft.assets" :key="a.path" class="asset-row"><img v-if="a.mime.startsWith('image/')" :src="urls[a.path]" alt=""/><FileText v-else :size="24"/><span class="asset-name">{{a.path.split('/').pop()}}<br/><span class="muted">{{(a.bytes.length/1024).toFixed(0)}} KB</span></span><div class="toolbar"><button @click="insertAsset(a)">插入</button><button v-if="a.mime!=='application/pdf'" @click="selectReplacement(a)">替换</button><button @click="download(a.bytes,a.path.split('/').pop()!,a.mime)">下载</button><button v-if="a.mime!=='application/pdf'" :aria-label="'删除 '+a.path" @click="removeAsset(a)"><Trash2 :size="13"/></button></div></div></div>
+      <details style="margin-top:20px"><summary>导入 PDF</summary><div><label class="check-label"><input v-model="originalOnly" type="checkbox"/>仅作为附件</label><div class="toolbar"><label class="button file-label"><FileText :size="16"/>选择 PDF<input class="visually-hidden" data-testid="import-pdf" type="file" accept=".pdf" :disabled="busy||converting" @change="pdfChange"/></label><button v-if="lastPDF" :disabled="converting" @click="convertPDF">重新导入</button><button v-if="converting" @click="cancelPDF">取消</button></div><p v-if="converting" role="status">{{conversionProgress||'正在打开 PDF…'}}</p>
+      <a v-if="urls['assets/original.pdf']" class="original-preview" :href="urls['assets/original.pdf']" target="_blank" rel="noopener noreferrer">查看原文件</a><details v-if="reports.length" style="margin-top:16px"><summary>查看导入结果</summary><ol class="pdf-report"><li v-for="r in reports" :key="r.page">第 {{r.page}} 页 · {{({text:'文字',scan:'图像',complex:'复杂布局'})[r.kind]}} · {{r.characters}} 字<p v-if="r.warnings.length" class="muted">{{r.warnings.join('；')}}</p></li></ol></details></div></details></section>
+      <section class="panel" style="margin-top:20px"><details><summary>本地草稿（{{saved.length}}）</summary><div><p class="muted">草稿保存在当前浏览器，建议定期下载备份。</p><div v-for="d in saved" :key="d.id" class="draft-item"><button :disabled="busy||converting" @click="restore(d)">{{d.title||'未命名草稿'}}<small>{{new Date(d.updatedAt).toLocaleString('zh-CN')}}</small></button><button :disabled="busy||converting" :aria-label="'删除草稿 '+d.title" @click="removeDraft(d)"><Trash2 :size="15"/></button></div></div></details></section>
     </div>
-    <section class="panel"><h2>发布</h2><details :open="settingsOpen" @toggle="settingsOpen=($event.target as HTMLDetailsElement).open"><summary>GitHub 仓库设置</summary><div class="settings-grid"><label>用户 / 组织<input v-model="config.owner" autocomplete="off" :disabled="busy"/></label><label>仓库<input v-model="config.repo" autocomplete="off" :disabled="busy"/></label><label>分支<input v-model="config.branch" :disabled="busy"/></label><label>工作流文件<input v-model="config.workflow" :disabled="busy"/></label><p class="muted full">先将本项目放入仓库，在 Pages 设置中选择 GitHub Actions。这里的设置只保存在此浏览器，不会修改项目配置。</p></div></details>
-      <label style="margin-top:20px">细粒度 GitHub token<input v-model="token" type="password" placeholder="只在本次页面内使用" autocomplete="new-password" spellcheck="false" :disabled="busy" data-testid="token"/></label>
-      <p class="muted small">仅选择目标仓库，授予 Contents 读写、Actions 只读、Deployments 只读。token 只存内存，刷新或离开页面即清除。</p>
-      <button class="small" :disabled="busy" @click="clearToken">清除凭据</button>
-      <details style="margin-top:18px"><summary>管理已有文章</summary><div class="toolbar"><label style="flex:1">远端文章地址<input v-model="remoteSlug" placeholder="my-first-note" :disabled="busy"/></label><button :disabled="busy||converting" @click="loadRemote">载入远端文章</button></div><p class="muted small">先载入文章。删除会同时移除该文章的图片和 PDF，部署完成后生效；本机草稿和 Git 历史仍保留。仅个人仓库所有者可使用此删除入口。</p><button class="button" :disabled="busy||converting||!draft.remote||!token" @click="removeRemote"><Trash2 :size="16"/>删除已发布文章</button></details>
-      <label class="check-label"><input v-model="reviewed" type="checkbox" :disabled="busy||converting"/>我已检查预览、图片和 PDF 转换结果</label><button class="button primary" :disabled="!reviewed||busy||converting||!!problems.length" @click="publish"><Send :size="16"/>{{busy?'正在保存…':'保存到 GitHub 并发布'}}</button>
+    <section class="panel"><h2>发布</h2><details :open="settingsOpen" @toggle="settingsOpen=($event.target as HTMLDetailsElement).open"><summary>发布设置</summary><div class="settings-grid"><label>用户 / 组织<input v-model="config.owner" autocomplete="off" :disabled="busy"/></label><label>仓库<input v-model="config.repo" autocomplete="off" :disabled="busy"/></label><label>分支<input v-model="config.branch" :disabled="busy"/></label><label>工作流文件<input v-model="config.workflow" :disabled="busy"/></label></div>
+      <label style="margin-top:20px">访问令牌<input v-model="token" type="password" placeholder="GitHub 访问令牌" autocomplete="new-password" spellcheck="false" :disabled="busy" data-testid="token"/></label>
+      <p class="muted small">刷新页面后需重新填写。</p>
+      <button class="small" :disabled="busy" @click="clearToken">清除</button></details>
+      <details style="margin-top:18px"><summary>管理已有文章</summary><div class="toolbar"><label style="flex:1">已发布文章地址<input v-model="remoteSlug" placeholder="my-first-note" :disabled="busy"/></label><button :disabled="busy||converting" @click="loadRemote">打开文章</button></div><p class="muted small">删除文章仅限博主操作。</p><button class="button" :disabled="busy||converting||!draft.remote||!token" @click="removeRemote"><Trash2 :size="16"/>删除已发布文章</button></details>
+      <label class="check-label"><input v-model="reviewed" type="checkbox" :disabled="busy||converting"/>已检查预览</label><button class="button primary" :disabled="!reviewed||busy||converting||!!problems.length" @click="publish"><Send :size="16"/>{{busy?'正在保存…':'发布文章'}}</button>
       <div v-if="status" class="status-line" role="status"><strong>{{({preparing:'准备中',uploading:'保存资源',saving:'提交中',saved:'已保存',building:'构建中',deployed:'部署完成',failed:'未完成',unknown:'待核查'})[status.stage]}}</strong><p>{{status.message}}<a v-if="status.url" :href="status.url" target="_blank" rel="noopener noreferrer">查看结果</a></p></div>
       <div v-if="receipt" class="toolbar" style="margin-top:16px"><button class="button" :disabled="busy" @click="refreshStatus()"><RefreshCw :size="15"/>刷新发布状态</button><small class="muted">提交 {{receipt.sha.slice(0,7)}}</small></div>
-      <p class="muted small" style="margin:24px 0 0">保存成功后，GitHub 仍需构建和部署。失败时草稿与原文件保留，可下载文章包改为本地发布。首次真实发布需完成仓库设置。</p>
+
     </section>
   </div>
 </template>

@@ -19,7 +19,7 @@ test('paste, drop, link insertion and resource deletion work in the editor',asyn
  page.once('dialog',d=>d.accept())
  await page.locator('.asset-row').first().getByRole('button',{name:/删除/}).click()
  await expect(page.locator('.asset-row')).toHaveCount(1)
- await expect(page.locator('.notice.error').filter({hasText:'缺失'})).toBeVisible();await page.getByRole('button',{name:'保存草稿',exact:true}).click();await expect(page.locator('.notice[role=alert]')).toHaveCount(0)
+ await expect(page.locator('.notice.error').filter({hasText:'附件无法读取'})).toBeVisible();await page.getByRole('button',{name:'保存草稿',exact:true}).click();await expect(page.locator('.notice[role=alert]')).toHaveCount(0)
 })
 test('review gate, atomic save and deployment result through mocked GitHub',async({page})=>{
  let head='base',writes=0
@@ -42,12 +42,12 @@ test('review gate, atomic save and deployment result through mocked GitHub',asyn
  })
  await page.goto('/editor.html');await page.getByLabel('标题',{exact:true}).fill('Mock publication');await page.getByLabel('文章地址',{exact:true}).fill('mock-note')
  await page.locator('.cm-content').fill('## Ready\n\nThis is a test.')
- await page.getByText('GitHub 仓库设置',{exact:true}).click()
+ await page.getByText('发布设置',{exact:true}).click()
  await page.getByLabel('用户 / 组织',{exact:true}).fill('author');await page.getByLabel('仓库',{exact:true}).fill('blog')
  await page.getByTestId('token').fill('mock-token-only')
- const publish=page.getByRole('button',{name:'保存到 GitHub 并发布',exact:true})
+ const publish=page.getByRole('button',{name:'发布文章',exact:true})
  await expect(publish).toBeDisabled();expect(writes).toBe(0)
- await page.getByLabel('我已检查预览、图片和 PDF 转换结果').check()
+ await page.getByLabel('已检查预览').check()
  await publish.click();try{await expect(page.locator('.status-line')).toContainText('部署完成')}catch(e){console.log('Publication error:',await page.locator('.notice[role=alert]').allTextContents(),'API paths:',requests.map(r=>r.path));throw e}
  expect(writes).toBe(1);expect(requests.find(r=>r.path==='/git/trees'&&r.method==='POST').body.base_tree).toBe('tree-base')
  const stored=await page.evaluate(async()=>{

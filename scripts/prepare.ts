@@ -11,6 +11,7 @@ const generated=['docs/posts','docs/public/posts','docs/.vitepress/generated']
 for(const dir of generated){const target=path.resolve(root,dir);if(!target.startsWith(root+path.sep))throw new Error('路径越界');await fs.rm(target,{recursive:true,force:true});await fs.mkdir(target,{recursive:true})}
 const posts:PostMeta[]=[];const search:PostMeta[]=[]
 const contentRoot=process.env.CONTENT_ROOT||'content/posts'
+await fs.mkdir(contentRoot,{recursive:true})
 const entries=await fs.readdir(contentRoot,{withFileTypes:true})
 for(const entry of entries){
   if(!entry.isDirectory())throw new Error('文章根目录仅允许文章文件夹')

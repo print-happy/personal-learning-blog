@@ -37,7 +37,7 @@ test('editor auto-saves, imports folder ZIP with GIF, exports and restores',asyn
  await page.getByLabel('文章地址',{exact:true}).fill('gif-note')
  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'下载文章包',exact:true}).click()
  const download=await downloadPromise;expect(download.suggestedFilename()).toBe('gif-note.zip');const archive=await download.path();await page.getByTestId('import-md').setInputFiles({name:'roundtrip.zip',mimeType:'application/zip',buffer:await fs.readFile(archive!)});await expect(page.getByLabel('标题',{exact:true})).toHaveValue('Imported GIF');await expect(page.frameLocator('iframe[title="文章实时预览"]').locator('img')).toHaveJSProperty('naturalWidth',40)
- await page.getByTestId('token').fill('fake-never-store-this')
+ await page.getByText('发布设置',{exact:true}).click();await page.getByTestId('token').fill('fake-never-store-this')
  await page.getByRole('button',{name:'保存草稿',exact:true}).click()
  const storage=await page.evaluate(()=>JSON.stringify(localStorage));expect(storage).not.toContain('fake-never-store-this')
  await page.reload();await expect(page.getByTestId('token')).toHaveValue('')
@@ -58,8 +58,8 @@ for(const [name,kind] of [['text.pdf','文字'],['scan.pdf','图像'],['mixed.pd
  test('PDF conversion '+name,async({page})=>{
   await page.goto('/editor.html');await page.getByText('导入 PDF',{exact:true}).click()
   await page.getByTestId('import-pdf').setInputFiles(fixture(name))
-  await expect(page.locator('.pdf-report')).toContainText(kind,{timeout:60000})
-  await expect(page.getByRole('link',{name:'打开原 PDF 对照'})).toBeVisible()
+  await page.getByText('查看导入结果',{exact:true}).click();await expect(page.locator('.pdf-report')).toContainText(kind,{timeout:60000});await expect(page.locator('.cm-content')).not.toContainText('PDF 转换草稿')
+  await expect(page.getByRole('link',{name:'查看原文件'})).toBeVisible()
   if(name==='text.pdf'||name==='mixed.pdf'){
     await expect(page.locator('.cm-content')).toContainText('PDF text sample')
     await expect(page.locator('.asset-name')).toContainText(['original.pdf','page-1-image-1.png'])
@@ -70,7 +70,7 @@ for(const [name,kind] of [['text.pdf','文字'],['scan.pdf','图像'],['mixed.pd
  })
 }
 test('PDF original-only and print layout',async({page})=>{
- await page.goto('/editor.html');await page.getByText('导入 PDF',{exact:true}).click();await page.getByLabel('保留原 PDF，不转换文字').check()
+ await page.goto('/editor.html');await page.getByText('导入 PDF',{exact:true}).click();await page.getByLabel('仅作为附件').check()
  await page.getByTestId('import-pdf').setInputFiles(fixture('scan.pdf'))
  await expect(page.getByLabel('标题',{exact:true})).toHaveValue('scan')
  await expect(page.locator('.asset-row')).toHaveCount(1)

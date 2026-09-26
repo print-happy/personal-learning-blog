@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test'
 
 test('fullscreen keeps content, supports both edge positions and dragging back',async({page})=>{
- await page.goto('/personal-learning-blog/editor.html')
+ await page.goto('/editor.html')
  const editor=page.locator('.cm-content'),workspace=page.locator('.writing-workspace'),splitter=page.getByRole('separator')
  await editor.fill('## Fullscreen note\n\nContent stays here.')
  await page.getByRole('button',{name:'全屏写作',exact:true}).click()
@@ -25,7 +25,7 @@ test('fullscreen keeps content, supports both edge positions and dragging back',
 test('mobile viewport fallback keeps a reachable divider and restores normal tabs',async({page})=>{
  await page.setViewportSize({width:390,height:844})
  await page.addInitScript(()=>{Element.prototype.requestFullscreen=async()=>{throw new Error('Fullscreen unavailable')}})
- await page.goto('/personal-learning-blog/editor.html')
+ await page.goto('/editor.html')
  await page.locator('.cm-content').fill('Mobile note')
  await page.getByRole('button',{name:'全屏写作',exact:true}).click()
  await expect(page.locator('.writing-workspace')).toHaveClass(/is-expanded/)

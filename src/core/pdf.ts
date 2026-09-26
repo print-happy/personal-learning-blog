@@ -30,18 +30,18 @@ export async function importPDF(file: File, base: string, originalOnly=false, pr
   const bytes=new Uint8Array(await file.arrayBuffer());fileMime('original.pdf',bytes)
   const draft=newDraft();draft.title=file.name.replace(/\.pdf$/i,'');draft.slug='pdf-'+Date.now().toString(36)
   draft.assets=[{path:'assets/original.pdf',bytes,mime:'application/pdf'}]
-  const original='[阅读 / 下载原 PDF](assets/original.pdf)'
+  const original='[下载 PDF](assets/original.pdf)'
   draft.markdown=original;const reports:PageReport[]=[]
   if(originalOnly)return {draft,reports}
   const task=pdfjs.getDocument({ data:bytes.slice(), enableXfa:false,
     cMapUrl:base+'pdfjs/cmaps/',cMapPacked:true,standardFontDataUrl:base+'pdfjs/standard_fonts/',wasmUrl:base+'pdfjs/wasm/' })
   const abort=()=>{void task.destroy()};signal?.addEventListener('abort',abort,{once:true})
   let totalBytes=bytes.length
-  const add=(asset:Asset)=>{totalBytes+=asset.bytes.length;if(asset.bytes.length>LIMITS.file||totalBytes>LIMITS.total||draft.assets.length>=LIMITS.files)throw new Error('转换资源超限，请选择“保留原 PDF”');draft.assets.push(asset)}
-  const parts=[original,'> PDF 转换草稿。请对照原文件检查标题、顺序、表格、公式与图片位置。']
+  const add=(asset:Asset)=>{totalBytes+=asset.bytes.length;if(asset.bytes.length>LIMITS.file||totalBytes>LIMITS.total||draft.assets.length>=LIMITS.files)throw new Error('转换后的文件过大，请选择“仅作为附件”');draft.assets.push(asset)}
+  const parts=[original]
   try {
     const doc=await task.promise
-    if(doc.numPages>LIMITS.pages)throw new Error('转换最多 40 页，请选择“保留原 PDF”')
+    if(doc.numPages>LIMITS.pages)throw new Error('此 PDF 超过 40 页，请选择“仅作为附件”')
     for(let n=1;n<=doc.numPages;n++){
       if(signal?.aborted)throw new Error('已取消转换')
       progress(n,doc.numPages)
@@ -76,12 +76,12 @@ export async function importPDF(file: File, base: string, originalOnly=false, pr
       const kind:PageReport['kind']=characters<8?'scan':complex?'complex':'text'
       const chunk=['## 第 '+n+' 页']
       if(characters>=8)chunk.push(organized.markdown)
-      if(images.length){chunk.push(...images);warnings.push('独立图片已提取，需检查其位置；裁剪、遮罩与叠加效果以原 PDF 为准')}
+      if(images.length){chunk.push(...images);warnings.push('请检查图片位置。')}
       if(kind!=='text'){
         const path='assets/page-'+n+'.png';add({path,bytes:await canvasPNG(canvas),mime:'image/png'})
         chunk.push('![第 '+n+' 页原貌]('+path+')')
-        warnings.push(kind==='scan'?'本页文字很少或无法提取，保留页面图像；未进行 OCR':'检测到复杂布局或图形，附页面图像供对照；文本顺序及表格、公式需人工检查')
-      } else warnings.push('文本按位置整理为段落、标题或列表；请校对阅读顺序')
+        warnings.push(kind==='scan'?'无法提取文字，已保留为图片。':'已附上页面图片，请检查文字顺序和排版。')
+      }
       reports.push({page:n,kind,characters,images:imageCount,warnings})
       parts.push(chunk.join('\n\n'));canvas.width=canvas.height=0;page.cleanup()
     }
@@ -89,7 +89,7 @@ export async function importPDF(file: File, base: string, originalOnly=false, pr
   } catch(error) {
     if(signal?.aborted)throw new Error('已取消转换')
     const name=(error as Error).name
-    throw new Error(name==='PasswordException'?'PDF 有密码保护，请先在本地解锁，或选择保留原 PDF':(error as Error).message || '转换失败；可选择保留原 PDF')
+    throw new Error(name==='PasswordException'?'PDF 已加密，请先解锁或选择“仅作为附件”':(error as Error).message || '转换失败，可选择“仅作为附件”')
   } finally {signal?.removeEventListener('abort',abort);await task.destroy()}
 }
 

@@ -18,7 +18,7 @@ export class GitHubError extends Error { constructor(public status:number, messa
 export class GitHub {
   private root:string
   constructor(public config:RepoConfig, private token:string,private fetcher:Fetcher=(input,init)=>fetch(input,init)){
-    validateConfig(config);if(!token.trim())throw new Error('请在此页面输入 GitHub token')
+    validateConfig(config);if(!token.trim())throw new Error('请先填写发布设置中的访问令牌')
     this.root='https://api.github.com/repos/'+encodeURIComponent(config.owner)+'/'+encodeURIComponent(config.repo)
   }
   clear(){this.token=''}
@@ -71,7 +71,7 @@ export class GitHub {
     const snap=await this.snapshot();const prefix='content/posts/'+draft.slug+'/'
     const previous=snap.entries.filter(e=>e.path.startsWith(prefix)&&e.type==='blob')
     if(previous.length) {
-      if(!draft.remote || draft.remote.repository!==repositoryKey(this.config)||draft.remote.slug!==draft.slug)throw new Error('同地址文章已存在。请先“载入远端文章”再编辑，或更改文章地址')
+      if(!draft.remote || draft.remote.repository!==repositoryKey(this.config)||draft.remote.slug!==draft.slug)throw new Error('同地址文章已存在。请先“打开文章”再编辑，或更改文章地址')
       if(draft.remote.fingerprint!==fingerprint(previous))throw new Error('远端文章或资源已更改。已停止保存，请导出本地草稿后重新载入并合并')
     } else if(draft.remote) throw new Error('远端文章已删除或发布目标已更改。请另存为新草稿后发布')
     const files=[{path:prefix+'index.md',bytes:new TextEncoder().encode(serializeDraft(draft))},...draft.assets.map(a=>({path:prefix+a.path,bytes:a.bytes}))]
@@ -109,7 +109,7 @@ export class GitHub {
     const user=await this.request('', 'GET', undefined, true)
     const repo=await this.request('')
     if(!user.id||repo.owner?.type!=='User'||user.id!==repo.owner.id||repo.permissions?.push!==true)
-      throw new Error('只有此个人仓库的所有者可以通过写作台删除文章，请使用所有者的 Contents 读写令牌')
+      throw new Error('只有仓库所有者可以删除文章')
   }
   async remove(draft:Draft,onStatus:(s:PublishStatus)=>void=()=>{}):Promise<Receipt> {
     validateSlug(draft.slug)
@@ -133,7 +133,7 @@ export class GitHub {
       try{receipt.confirmed=await this.contains(receipt.sha)}catch{}
       if(!receipt.confirmed){onStatus({stage:'unknown',message:'删除结果暂不确定，请刷新发布状态，不要重复删除。本机草稿仍保留',receipt});return receipt}
     }
-    onStatus({stage:'saved',message:'删除已提交，部署完成后文章会从网站移除。本机草稿与 Git 历史保留',receipt})
+    onStatus({stage:'saved',message:'正在更新网站，完成后文章将下线',receipt})
     return receipt
   }
   async status(receipt:Receipt):Promise<PublishStatus> {
