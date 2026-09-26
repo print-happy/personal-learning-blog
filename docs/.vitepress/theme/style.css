@@ -20,3 +20,6 @@
 
 
 .empty-posts{padding:36px 0 56px;color:var(--muted);font-size:.9375rem}
+.editor-title{display:flex;align-items:center;gap:6px}.help-link{color:var(--muted);border-radius:50%}.help-link:hover{color:var(--accent);background:var(--accent-soft)}
+.help-layout .article-heading{margin-bottom:30px}.help-layout .toc{margin-top:108px}.help-prose li{margin-bottom:.65em}.help-prose li>p{margin-bottom:.7em}.help-prose .header-anchor{margin-left:.3em;text-decoration:none;opacity:0;font-size:.8em}.help-prose :is(h2,h3):hover .header-anchor,.help-prose .header-anchor:focus{opacity:1}.help-prose .vp-code-group,.help-prose [class*="language-"]{position:relative;min-width:0}.help-prose [class*="language-"]>.lang,.help-prose [class*="language-"]>.copy{display:none}.help-prose pre code{display:block;color:var(--text)}.dark .help-prose pre span{color:var(--shiki-dark,var(--text))!important}
+.help-prose table{display:table;table-layout:fixed}.help-prose th{white-space:normal}

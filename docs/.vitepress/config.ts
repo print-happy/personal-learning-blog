@@ -11,5 +11,5 @@ export default defineConfig({
   ],
   sitemap:site.origin?{hostname:site.origin}:undefined,
   vite:{build:{chunkSizeWarningLimit:850},ssr:{noExternal:['sanitize-html']}},
-  markdown:{html:false},
+  markdown:{html:false,headers:{level:[2]}},
 })

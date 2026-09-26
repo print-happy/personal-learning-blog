@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useData, withBase } from 'vitepress'
+import { Content, useData, withBase } from 'vitepress'
 import { Search, Sun, Moon, Monitor, PenLine, BookOpen, ArrowUpRight, X, Printer } from 'lucide-vue-next'
 import site from '../../../site.config'
 import postData from '../generated/posts.json'
 import type { PostMeta } from '../../../src/core/types'
 const posts:PostMeta[]=postData
-const {frontmatter:fm}=useData()
+const {frontmatter:fm,page}=useData()
 const Editor=defineAsyncComponent(()=>import('../../../src/editor/Editor.vue'))
 const mode=ref('system'), query=ref(''), selectedTag=ref(''), searchResults=ref<PostMeta[]>([]), searchError=ref('')
 const dialog=ref<HTMLDialogElement>(),searchInput=ref<HTMLInputElement>()
@@ -65,6 +65,12 @@ onBeforeUnmount(()=>{media?.removeEventListener('change',theme);document.removeE
       </div>
     </template>
     <template v-else-if="fm.layout==='about'"><div class="about-page"><span class="eyebrow">ABOUT</span><h1>关于</h1><p>这里记录我的学习笔记与阅读心得。</p><p><a href="https://github.com/print-happy" target="_blank" rel="noopener noreferrer">GitHub · print-happy</a></p><div class="about-rule"></div><p class="small muted">首页摄影：<a href="https://unsplash.com/photos/misty-lake-with-mountains-and-trees-at-dawn-uyxJl4SBE3s" target="_blank" rel="noopener noreferrer">Anthony Gomez / Unsplash</a></p></div></template>
+    <template v-else-if="fm.layout==='help'">
+      <div class="article-layout help-layout">
+        <article class="article"><a class="back-link" :href="withBase('/editor.html')">写作页</a><header class="article-heading"><h1>{{fm.title}}</h1></header><Content class="prose help-prose"/></article>
+        <nav class="toc" aria-label="帮助目录"><span>本页内容</span><a v-for="heading in page.headers" :key="heading.slug" :href="'#'+heading.slug">{{heading.title}}</a></nav>
+      </div>
+    </template>
     <template v-else-if="fm.layout==='editor'"><ClientOnly><Editor/><template #fallback><p class="muted">正在打开写作台…</p></template></ClientOnly></template>
     <template v-else><div class="about-page"><h1>页面未找到</h1><a :href="withBase('/')">回到首页</a></div></template>
   </main>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
-import { useData } from 'vitepress'
-import { Download, Upload, ImagePlus, Link, FileText, Plus, Save, Send, RefreshCw, Trash2 } from 'lucide-vue-next'
+import { useData, withBase } from 'vitepress'
+import { Download, Upload, ImagePlus, Link, FileText, Plus, Save, Send, RefreshCw, Trash2, CircleHelp } from 'lucide-vue-next'
 import MarkdownEditor from './MarkdownEditor.vue'
 import WritingWorkspace from './WritingWorkspace.vue'
 import { newDraft, cloneDraft, LIMITS, type Draft, type Asset } from '../core/types'
@@ -155,7 +155,7 @@ onMounted(async()=>{
 onBeforeUnmount(()=>{alive=false;clearToken();clearTimeout(saveTimer);clearTimeout(previewTimer);abort?.abort();Object.values(urls.value).forEach(URL.revokeObjectURL);if(revision>savedRevision)void persist(true).catch(()=>{});window.removeEventListener('beforeunload',beforeLeave);window.removeEventListener('pagehide',clearToken)})
 </script>
 <template>
-  <div class="editor-head"><h1>写作</h1><span class="save-note" aria-live="polite">{{saveNote}}</span><div class="toolbar"><button class="button" :disabled="busy||converting" @click="fresh"><Plus :size="16"/>新建</button><button class="button" @click="persist().catch(fail)"><Save :size="16"/>保存草稿</button><button class="button" @click="exportPackage"><Download :size="16"/>下载文章包</button></div></div>
+  <div class="editor-head"><div class="editor-title"><h1>写作</h1><a class="icon-button help-link" :href="withBase('/help.html')" target="_blank" rel="noopener noreferrer" aria-label="写作帮助（新标签页打开）" title="写作帮助（新标签页打开）"><CircleHelp :size="21"/></a></div><span class="save-note" aria-live="polite">{{saveNote}}</span><div class="toolbar"><button class="button" :disabled="busy||converting" @click="fresh"><Plus :size="16"/>新建</button><button class="button" @click="persist().catch(fail)"><Save :size="16"/>保存草稿</button><button class="button" @click="exportPackage"><Download :size="16"/>下载文章包</button></div></div>
   <div v-if="error" class="notice error" role="alert">{{error}} <button class="small" @click="error=''">关闭</button></div>
   <div v-if="notice" class="notice" role="status">{{notice}}</div>
   <div :inert="busy||converting">
