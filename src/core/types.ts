@@ -8,6 +8,6 @@ export function cloneDraft(d: Draft): Draft {
     assets:d.assets.map(a=>({path:a.path,mime:a.mime,bytes:a.bytes.slice()})),
     ...(d.remote?{remote:{repository:d.remote.repository,slug:d.remote.slug,fingerprint:d.remote.fingerprint}}:{}) }
 }
-export interface PostMeta { slug: string; title: string; date: string; tags: string[]; text?: string }
+export interface PostMeta { slug: string; title: string; date: string; tags: string[]; updatedAt?:number; text?: string }
 export const LIMITS = { markdown: 2 * 1024 * 1024, file: 20 * 1024 * 1024, total: 50 * 1024 * 1024, files: 150, pages: 40, imagePixels: 16_000_000, zip: 30 * 1024 * 1024 };
 export function newDraft(): Draft { return { id: crypto.randomUUID(), title: '', slug: '', date: new Date().toLocaleDateString('sv-SE'), tags: [], markdown: '', assets: [], updatedAt: Date.now() } }

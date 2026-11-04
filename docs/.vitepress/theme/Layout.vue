@@ -4,6 +4,8 @@ import { useData, withBase } from 'vitepress'
 import { Search, Sun, Moon, Monitor, ArrowUpRight, X, Printer } from 'lucide-vue-next'
 import site from '../../../site.config'
 import postData from '../generated/posts.json'
+import topicData from '../generated/topics.json'
+import type {PublicTopic} from '../../../src/core/topic-schema'
 
 
 import { validateAppearance } from '../../../src/core/appearance'
@@ -11,6 +13,10 @@ import type { PostMeta } from '../../../src/core/types'
 const background=ref({image:'',opacity:0.18})
 const backdrop=computed(()=>({backgroundImage:background.value.image?'url("'+background.value.image+'")':'none',opacity:background.value.opacity}))
 onMounted(async()=>{try{const r=await fetch(withBase('/appearance.json'));if(r.ok){const value=await r.json();validateAppearance(value);background.value=value}}catch{}})
+const topics:PublicTopic[]=topicData as PublicTopic[]
+const currentTopic=computed(()=>topics.find(t=>t.id===fm.value.topicId))
+const topicPosts=computed(()=>{const t=currentTopic.value;if(!t)return [];const rows=posts.filter(p=>t.members.includes(p.slug));return t.order==='manual'?rows.sort((a,b)=>t.members.indexOf(a.slug)-t.members.indexOf(b.slug)):rows})
+function modified(p:{updatedAt?:number,date?:unknown}){return p.updatedAt?new Date(p.updatedAt).toISOString().slice(0,10):String(p.date||'').slice(0,10)}
 const posts:PostMeta[]=postData
 const {frontmatter:fm}=useData()
 const mode=ref('system'), query=ref(''), selectedTag=ref(''), searchResults=ref<PostMeta[]>([]), searchError=ref('')
@@ -39,7 +45,7 @@ onBeforeUnmount(()=>{media?.removeEventListener('change',theme);document.removeE
     <a class="brand" :href="withBase('/')">{{ site.title }}</a>
     <nav aria-label="主导航">
       <a :href="withBase('/articles.html')" :aria-current="fm.layout==='articles'?'page':undefined">文章</a>
-      <a :href="withBase('/topics.html')" :aria-current="fm.layout==='topics'?'page':undefined">专题</a>
+      <a :href="withBase('/topics.html')" :aria-current="['topics','topic'].includes(fm.layout)?'page':undefined">专题</a>
       <a :href="withBase('/about.html')" :aria-current="fm.layout==='about'?'page':undefined">关于</a>
     </nav>
     <div class="header-actions">
@@ -49,15 +55,21 @@ onBeforeUnmount(()=>{media?.removeEventListener('change',theme);document.removeE
     </div>
   </header>
   <main id="main" class="main">
-    <template v-if="fm.layout==='home'||fm.layout==='articles'||fm.layout==='topics'">
+    <template v-if="fm.layout==='topics'||fm.layout==='topic'">
+ <template v-if="currentTopic"><a :href="withBase('/topics.html')">所有专题</a><div class="page-heading"><h1>{{currentTopic.title}}</h1><span class="muted">{{topicPosts.length}} 篇</span></div><p style="white-space:pre-wrap">{{currentTopic.description}}</p>
+ <div class="post-list"><a v-for="post in topicPosts" :key="post.slug" class="post-row" :href="withBase('/posts/'+post.slug+'.html')"><time class="archive-date">{{modified(post)}}</time><div><h2>{{post.title}}</h2><span v-for="tag in post.tags" :key="tag" class="tag">{{tag}}</span></div><ArrowUpRight :size="20"/></a></div><p v-if="!topicPosts.length" class="empty-posts">暂无文章</p></template>
+ <template v-else><div class="page-heading"><h1>专题</h1></div><div class="post-list"><a v-for="t in topics" :key="t.id" class="post-row" :href="withBase('/topics/'+encodeURIComponent(t.id)+'.html')"><span class="muted">{{t.members.length}} 篇</span><div><h2>{{t.title}}</h2><p>{{t.description}}</p></div><ArrowUpRight :size="20"/></a></div><p v-if="!topics.length" class="empty-posts">暂无专题</p></template>
+ </template>
+ <template v-else-if="fm.layout==='home'||fm.layout==='articles'">
       <div class="page-heading"><span class="eyebrow">{{fm.layout==='topics'?'TOPICS':'ARCHIVE'}}</span><h1>{{fm.layout==='home'?'文章':fm.title}}</h1><span class="muted">{{posts.length}} 篇</span></div>
-      <div v-if="posts.length" class="tag-filters" aria-label="按专题筛选"><button :class="{selected:!selectedTag}" @click="selectedTag=''">全部</button><button v-for="tag in tags" :key="tag" :class="{selected:selectedTag===tag}" @click="selectedTag=tag">{{tag}} <span>{{posts.filter(p=>p.tags.includes(tag)).length}}</span></button></div>
+      <div v-if="posts.length" class="tag-filters" aria-label="按标签筛选"><button :class="{selected:!selectedTag}" @click="selectedTag=''">全部</button><button v-for="tag in tags" :key="tag" :class="{selected:selectedTag===tag}" @click="selectedTag=tag">{{tag}} <span>{{posts.filter(p=>p.tags.includes(tag)).length}}</span></button></div>
       <p v-if="!listed.length" class="empty-posts">暂无文章</p>
-      <div class="post-list"><a v-for="post in listed" :key="post.slug" class="post-row" :href="withBase('/posts/'+post.slug+'.html')"><time class="archive-date">{{post.date}}</time><div><h2>{{post.title}}</h2><div class="post-meta"><span v-for="tag in post.tags" :key="tag" class="tag">{{tag}}</span></div></div><ArrowUpRight class="post-arrow" :size="20"/></a></div>
+      <div class="post-list"><a v-for="post in listed" :key="post.slug" class="post-row" :href="withBase('/posts/'+post.slug+'.html')"><time class="archive-date">{{modified(post)}}</time><div><h2>{{post.title}}</h2><div class="post-meta"><span v-for="tag in post.tags" :key="tag" class="tag">{{tag}}</span></div></div><ArrowUpRight class="post-arrow" :size="20"/></a></div>
     </template>
     <template v-else-if="fm.layout==='article'">
       <div class="article-layout">
-        <article class="article"><a class="back-link" :href="withBase('/articles.html')">所有文章</a><header class="article-heading"><h1>{{fm.title}}</h1><div class="post-meta"><time>{{String(fm.date).slice(0,10)}}</time><span v-for="tag in fm.tags" :key="tag" class="tag">{{tag}}</span><button class="print-button" @click="print"><Printer :size="15"/>导出 PDF</button></div></header>
+        <article class="article"><a class="back-link" :href="withBase('/articles.html')">所有文章</a><header class="article-heading"><h1>{{fm.title}}</h1><div class="post-meta"><time>{{modified(fm)}}</time><span v-for="tag in fm.tags" :key="tag" class="tag">{{tag}}</span><button class="print-button" @click="print"><Printer :size="15"/>导出 PDF</button></div></header>
+          <nav class="tag-filters" aria-label="收录专题"><a v-for="t in topics.filter(t=>t.members.includes(fm.slug))" :key="t.id" :href="withBase('/topics/'+encodeURIComponent(t.id)+'.html')">{{t.title}}</a></nav>
           <div class="prose" v-html="fm.body"></div>
           <section v-if="fm.pdfs?.length" class="original-pdfs"><h2>附件</h2><div v-for="pdf in fm.pdfs" :key="pdf.url"><a :href="pdf.url" target="_blank" rel="noopener noreferrer">打开 {{pdf.name}}</a><a class="button small" :href="pdf.url" download>下载原文件</a><iframe :src="pdf.url" :title="pdf.name+' 原 PDF 阅读器'" loading="lazy"></iframe></div></section>
         </article>

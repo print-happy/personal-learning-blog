@@ -41,10 +41,12 @@ export function parseMarkdown(source: string) {
   const title = typeof data.title === 'string' ? data.title.slice(0,160) : markdown.match(/^# (.+)$/m)?.[1] || ''
   const date = typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : ''
   const tags = Array.isArray(data.tags) ? data.tags.filter((s): s is string => typeof s === 'string').slice(0,12).map(s=>s.slice(0,40)) : []
-  return { title, date, tags, markdown }
+  const parsedTime=typeof data.updated==='string'?Date.parse(data.updated):NaN
+  const updatedAt=Number.isFinite(parsedTime)?parsedTime:(date?Date.parse(date+'T00:00:00Z'):0)
+  return { title, date, tags, markdown, updatedAt }
 }
 export function serializeDraft(draft: Draft) {
-  return '---\n' + stringify({ title: draft.title.trim(), date: draft.date, tags: draft.tags }) + '---\n\n' + draft.markdown
+  return '---\n' + stringify({ title: draft.title.trim(), date: draft.date, tags: draft.tags, updated: new Date(draft.updatedAt||0).toISOString() }) + '---\n\n' + draft.markdown
 }
 export function validateDraft(d: Draft) {
   validateSlug(d.slug)
