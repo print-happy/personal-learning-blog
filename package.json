@@ -1,0 +1,32 @@
+{
+  "name": "personal-learning-blog-readonly",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsx scripts/prepare.ts && vitepress build docs && node scripts/check-readonly.mjs",
+    "typecheck": "tsx scripts/prepare.ts && vue-tsc --noEmit",
+    "check": "pnpm typecheck && pnpm build"
+  },
+  "dependencies": {
+    "highlight.js": "11.12.0",
+    "lucide-vue-next": "0.468.0",
+    "markdown-it": "14.3.3",
+    "sanitize-html": "2.18.1",
+    "vitepress": "1.6.4",
+    "vue": "3.5.43",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "14.2.0",
+    "@types/node": "22.20.4",
+    "@types/sanitize-html": "2.16.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vue-tsc": "3.3.11"
+  }
+}
