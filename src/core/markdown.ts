@@ -5,7 +5,7 @@ import type { Heading } from './types'
 export interface RenderOptions { resolveAsset?: (url: string, image: boolean) => string | undefined; highlight?: boolean }
 export function renderMarkdown(source: string, options: RenderOptions = {}) {
   const headings: Heading[] = []; const missing: string[] = []
-  const md = new MarkdownIt({ html:false, linkify:false, breaks:false, typographer:false,
+  const md = new MarkdownIt({ html:false, linkify:false, breaks:true, typographer:false,
     highlight(code, lang) {
       return options.highlight !== false && lang && hljs.getLanguage(lang) ? hljs.highlight(code, { language:lang, ignoreIllegals:true }).value : ''
     }
@@ -44,3 +44,4 @@ export function localResource(url: string): string | null {
   if (/^(https?:|mailto:|#)/i.test(url)) return null
   return url.replace(/^\.\//,'').split('#')[0]
 }
+
