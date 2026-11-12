@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import {prepareMath} from './prepare-math.mjs'
 import path from 'node:path'
 import { stringify } from 'yaml'
 import site from '../site.config'
@@ -10,6 +11,7 @@ const root=process.cwd();const base=process.env.BLOG_BASE || site.base
 if(!/^\/(?:[a-zA-Z0-9_.-]+\/)*$/.test(base))throw new Error('BLOG_BASE 必须是 / 或 /仓库名/ 形式')
 const generated=['docs/posts','docs/topics','docs/public/posts','docs/.vitepress/generated']
 for(const dir of generated){const target=path.resolve(root,dir);if(!target.startsWith(root+path.sep))throw new Error('路径越界');await fs.rm(target,{recursive:true,force:true});await fs.mkdir(target,{recursive:true})}
+await prepareMath()
 const posts:PostMeta[]=[];const search:PostMeta[]=[]
 const contentRoot=process.env.CONTENT_ROOT||'content/posts'
 await fs.mkdir(contentRoot,{recursive:true})

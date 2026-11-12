@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import sanitizeHtml from 'sanitize-html'
 import hljs from 'highlight.js/lib/common'
+import {mathPlugin,restoreMath} from './math'
 import type { Heading } from './types'
 export interface RenderOptions { resolveAsset?: (url: string, image: boolean) => string | undefined; highlight?: boolean }
 export function renderMarkdown(source: string, options: RenderOptions = {}) {
@@ -11,7 +12,9 @@ export function renderMarkdown(source: string, options: RenderOptions = {}) {
     }
   })
   // Content is never compiled as a Vue template, at preview or at build time.
-  const tokens = md.parse(source, {})
+  md.use(mathPlugin)
+  const environment={}
+  const tokens = md.parse(source, environment)
   let index = 0
   for (let i=0;i<tokens.length;i++) {
     const t = tokens[i]
@@ -31,17 +34,16 @@ export function renderMarkdown(source: string, options: RenderOptions = {}) {
       else { c.attrSet('loading','lazy'); c.attrSet('decoding','async') }
     }
   }
-  const raw = md.renderer.render(tokens, md.options, {})
+  const raw = md.renderer.render(tokens, md.options, environment)
   const html = sanitizeHtml(raw, {
     allowedTags:['p','br','hr','h1','h2','h3','h4','h5','h6','blockquote','ul','ol','li','strong','em','s','a','img','pre','code','span','table','thead','tbody','tr','th','td'],
-    allowedAttributes:{ '*':['id'], a:['href','title','rel'], img:['src','alt','title','loading','decoding'], code:['class'], span:['class'], th:['align'],td:['align'],ol:['start'] },
+    allowedAttributes:{ '*':['id'], a:['href','title','rel'], img:['src','alt','title','loading','decoding'], code:['class'], span:['class','data-math-index'], th:['align'],td:['align'],ol:['start'] },
     allowedSchemes:['http','https','mailto'], allowedSchemesByTag:{img:['blob','data','http','https']},
     allowProtocolRelative:false, enforceHtmlBoundary:true
   })
-  return { html, headings, missing:[...new Set(missing)] }
+  return { html:restoreMath(html,environment), headings, missing:[...new Set(missing)] }
 }
 export function localResource(url: string): string | null {
   if (/^(https?:|mailto:|#)/i.test(url)) return null
   return url.replace(/^\.\//,'').split('#')[0]
 }
-
